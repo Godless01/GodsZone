@@ -1,5 +1,18 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const cmdIcons = require('../../UI/icons/commandicons');
+const { logsCollection } = require('../../mongodb');
+
+async function getLogChannel(guild) {
+    const config = await logsCollection.findOne({ 
+        guildId: guild.id, 
+        eventType: 'moderationLogs' 
+    });
+    
+    if (config && config.channelId) {
+        return guild.channels.cache.get(config.channelId);
+    }
+    return null;
+}
 
 function ms(string) {
     const match = string.match(/(\d+)([smhd])/);
@@ -102,7 +115,7 @@ module.exports = {
                     option.setName('message')
                         .setDescription('Message to send.')
                         .setRequired(true)))
-        // NEW: Chat mute commands
+        // Chat mute commands
         .addSubcommand(subcommand =>
             subcommand
                 .setName('cmute')
@@ -127,7 +140,7 @@ module.exports = {
                     option.setName('member')
                         .setDescription('User to unmute.')
                         .setRequired(true)))
-        // NEW: Voice mute commands
+        // Voice mute commands
         .addSubcommand(subcommand =>
             subcommand
                 .setName('vmute')
@@ -294,6 +307,22 @@ module.exports = {
                 await member.roles.add(muteRole, reason);
                 interaction.reply(`🔇 **${member.user.tag}** has been chat-muted for **${durationStr}**.\nReason: ${reason}`);
 
+                // Log to channel
+                const logChannel = await getLogChannel(interaction.guild);
+                if (logChannel) {
+                    const logEmbed = new EmbedBuilder()
+                        .setColor('#ff9900')
+                        .setTitle('🔇 Chat Mute')
+                        .addFields(
+                            { name: 'User', value: `${member.user.tag} (${member.id})`, inline: true },
+                            { name: 'Duration', value: durationStr, inline: true },
+                            { name: 'Moderator', value: interaction.user.tag, inline: true },
+                            { name: 'Reason', value: reason }
+                        )
+                        .setTimestamp();
+                    logChannel.send({ embeds: [logEmbed] });
+                }
+
                 setTimeout(async () => {
                     try {
                         await member.roles.remove(muteRole, 'Mute duration expired');
@@ -313,6 +342,20 @@ module.exports = {
                 await member.roles.remove(muteRole, 'Unmute command');
                 interaction.reply(`🔊 **${member.user.tag}** has been **chat-unmuted**.`);
 
+                // Log to channel
+                const logChannel = await getLogChannel(interaction.guild);
+                if (logChannel) {
+                    const logEmbed = new EmbedBuilder()
+                        .setColor('#00ff00')
+                        .setTitle('🔊 Chat Unmute')
+                        .addFields(
+                            { name: 'User', value: `${member.user.tag} (${member.id})`, inline: true },
+                            { name: 'Moderator', value: interaction.user.tag, inline: true }
+                        )
+                        .setTimestamp();
+                    logChannel.send({ embeds: [logEmbed] });
+                }
+
             } else if (subcommand === 'vmute') {
                 const member = interaction.options.getMember('member');
                 const durationStr = interaction.options.getString('duration');
@@ -327,6 +370,22 @@ module.exports = {
 
                 await member.voice.setMute(true, reason);
                 interaction.reply(`🎙️🔇 **${member.user.tag}** voice-muted for **${durationStr}**.\nReason: ${reason}`);
+
+                // Log to channel
+                const logChannel = await getLogChannel(interaction.guild);
+                if (logChannel) {
+                    const logEmbed = new EmbedBuilder()
+                        .setColor('#ff6600')
+                        .setTitle('🎙️ Voice Mute')
+                        .addFields(
+                            { name: 'User', value: `${member.user.tag} (${member.id})`, inline: true },
+                            { name: 'Duration', value: durationStr, inline: true },
+                            { name: 'Moderator', value: interaction.user.tag, inline: true },
+                            { name: 'Reason', value: reason }
+                        )
+                        .setTimestamp();
+                    logChannel.send({ embeds: [logEmbed] });
+                }
 
                 setTimeout(async () => {
                     try {
@@ -345,6 +404,20 @@ module.exports = {
 
                 await member.voice.setMute(false, 'Manual voice unmute');
                 interaction.reply(`🎙️🔊 **${member.user.tag}** has been **voice-unmuted**.`);
+
+                // Log to channel
+                const logChannel = await getLogChannel(interaction.guild);
+                if (logChannel) {
+                    const logEmbed = new EmbedBuilder()
+                        .setColor('#00ff00')
+                        .setTitle('🎙️ Voice Unmute')
+                        .addFields(
+                            { name: 'User', value: `${member.user.tag} (${member.id})`, inline: true },
+                            { name: 'Moderator', value: interaction.user.tag, inline: true }
+                        )
+                        .setTimestamp();
+                    logChannel.send({ embeds: [logEmbed] });
+                }
             }
         } else {
             const embed = new EmbedBuilder()
