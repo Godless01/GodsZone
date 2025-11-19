@@ -18,7 +18,7 @@ module.exports = {
      
             const BOT_ICON = "https://cdn.discordapp.com/emojis/1369981215578263562.png";
             const EMBED_COLOR = "#3498db"; 
-            const FOOTER_TEXT = "GodsZone | The Discord Operating System • Created by Godless";
+            const FOOTER_TEXT = "UnderHeaven | The Discord Operating System • Created by Godless";
             const COMMANDS_DIR = path.join(__dirname, '../../commands');
             const EXCESS_COMMANDS_DIR = path.join(__dirname, '../../excesscommands');
 
@@ -117,7 +117,7 @@ module.exports = {
 
                 // Enhanced Info Page
                 pages.push({
-                    title: '✨ GodsZone',
+                    title: '✨ UnderHeaven',
                     description: [
                         '### THE DISCORD OPERATING SYSTEM',
                         '',
@@ -132,7 +132,7 @@ module.exports = {
                         `\`💻\` **Prefix Commands:** ${Object.values(config.excessCommands).some(v => v) ? '`Enabled`' : '`Disabled`'}`,
                         '',
                     ].join('\n'),
-                    author: { name: 'GodsZone • COMMAND CENTER' },
+                    author: { name: 'UnderHeaven • COMMAND CENTER' },
                     icon: '📚' // Safe icon for dropdown
                 });
 
@@ -382,7 +382,7 @@ module.exports = {
                     url: "https://discord.gg/akAkqGQdbb"
                 })
                 .setDescription('> ⚠️ This command can only be used as a slash command!\n> Please use `/help` instead.')
-                .setFooter({ text: 'GodsZone • Error' })
+                .setFooter({ text: 'UnderHeaven • Error' })
                 .setTimestamp();
 
             // We need to use editReply since we already deferred the interaction
