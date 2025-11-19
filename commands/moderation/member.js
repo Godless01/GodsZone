@@ -24,6 +24,200 @@ const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('disc
 const cmdIcons = require('../../UI/icons/commandicons');
 module.exports = {
     data: new SlashCommandBuilder()
+        .setName("vunmute")
+        .setDescription("Unmute a user from voice mute")
+        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
+        .addUserOption(opt =>
+            opt.setName("member")
+                .setDescription("User to unmute")
+                .setRequired(true)
+        ),
+
+    async execute(interaction) {
+        const member = interaction.options.getMember("member");
+
+        if (!member.voice.channel)
+            return interaction.reply({ content: "User is not in a voice channel.", ephemeral: true });
+
+        if (!member.voice.mute)
+            return interaction.reply({ content: "User is not voice-muted.", ephemeral: true });
+
+        await member.voice.setMute(false, "Manual voice unmute");
+
+        interaction.reply(`🎙️🔊 **${member.user.tag}** has been **voice-unmuted**.`);
+    }
+};
+function ms(string) {
+    const match = string.match(/(\d+)([smhd])/);
+    if (!match) return null;
+
+    const num = parseInt(match[1]);
+    const unit = match[2];
+
+    const multipliers = {
+        s: 1000,
+        m: 60_000,
+        h: 3_600_000,
+        d: 86_400_000
+    };
+
+    return num * multipliers[unit];
+}
+
+module.exports = {
+    data: new SlashCommandBuilder()
+        .setName("vmute")
+        .setDescription("Voice-mute a user for a duration")
+        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
+        .addUserOption(opt =>
+            opt.setName("member")
+                .setDescription("User to mute")
+                .setRequired(true)
+        )
+        .addStringOption(opt =>
+            opt.setName("duration")
+                .setDescription("Duration (10m, 1h, 2d)")
+                .setRequired(true)
+        )
+        .addStringOption(opt =>
+            opt.setName("reason")
+                .setDescription("Reason for mute")
+                .setRequired(false)
+        ),
+
+    async execute(interaction) {
+        const member = interaction.options.getMember("member");
+        const durationStr = interaction.options.getString("duration");
+        const reason = interaction.options.getString("reason") ?? "No reason provided";
+
+        const durationMs = ms(durationStr);
+        if (!durationMs)
+            return interaction.reply({ content: "Invalid duration format.", ephemeral: true });
+
+        if (!member.voice.channel)
+            return interaction.reply({ content: "User is not in a voice channel.", ephemeral: true });
+
+        await member.voice.setMute(true, reason);
+
+        interaction.reply(`🎙️🔇 **${member.user.tag}** voice-muted for **${durationStr}**.\nReason: ${reason}`);
+
+        setTimeout(async () => {
+            try {
+                await member.voice.setMute(false, "Voice mute expired");
+            } catch { }
+        }, durationMs);
+    }
+};
+module.exports = {
+    data: new SlashCommandBuilder()
+        .setName("cunmute")
+        .setDescription("Unmute a user in chat")
+        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
+        .addUserOption(opt =>
+            opt.setName("member")
+                .setDescription("User to unmute")
+                .setRequired(true)
+        ),
+
+    async execute(interaction) {
+        const member = interaction.options.getMember("member");
+
+        const muteRole = interaction.guild.roles.cache.find(r => r.name.toLowerCase() === "muted");
+
+        if (!muteRole)
+            return interaction.reply({ content: "Muted role does not exist.", ephemeral: true });
+
+        if (!member.roles.cache.has(muteRole.id))
+            return interaction.reply({ content: "User is not muted.", ephemeral: true });
+
+        await member.roles.remove(muteRole, "Unmute command");
+
+        interaction.reply(`🔊 **${member.user.tag}** has been **chat-unmuted**.`);
+    }
+};
+
+function ms(string) {
+    const match = string.match(/(\d+)([smhd])/);
+    if (!match) return null;
+
+    const num = parseInt(match[1]);
+    const unit = match[2];
+
+    const multipliers = {
+        s: 1000,
+        m: 60_000,
+        h: 3_600_000,
+        d: 86_400_000
+    };
+
+    return num * multipliers[unit];
+}
+
+module.exports = {
+    data: new SlashCommandBuilder()
+        .setName("cmute")
+        .setDescription("Mute a user in chat for a duration")
+        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
+        .addUserOption(opt =>
+            opt.setName("member")
+                .setDescription("User to mute")
+                .setRequired(true)
+        )
+        .addStringOption(opt =>
+            opt.setName("duration")
+                .setDescription("Duration (10m, 1h, 2d)")
+                .setRequired(true)
+        )
+        .addStringOption(opt =>
+            opt.setName("reason")
+                .setDescription("Reason for mute")
+                .setRequired(false)
+        ),
+
+    async execute(interaction) {
+        const member = interaction.options.getMember("member");
+        const durationStr = interaction.options.getString("duration");
+        const reason = interaction.options.getString("reason") ?? "No reason provided";
+
+        const durationMs = ms(durationStr);
+        if (!durationMs)
+            return interaction.reply({ content: "Invalid duration. Use: 10m, 1h, 2d", ephemeral: true });
+
+        // Find or create Muted role
+        let muteRole = interaction.guild.roles.cache.find(r => r.name.toLowerCase() === "muted");
+
+        if (!muteRole) {
+            muteRole = await interaction.guild.roles.create({
+                name: "Muted",
+                color: "#2c2f33",
+                reason: "Auto-created Muted role"
+            });
+
+            // Lock permissions for every channel
+            interaction.guild.channels.cache.forEach(async (ch) => {
+                try {
+                    await ch.permissionOverwrites.edit(muteRole, {
+                        SendMessages: false,
+                        AddReactions: false,
+                        Speak: false
+                    });
+                } catch { }
+            });
+        }
+
+        await member.roles.add(muteRole, reason);
+
+        interaction.reply(`🔇 **${member.user.tag}** has been chat-muted for **${durationStr}**.\nReason: ${reason}`);
+
+        setTimeout(async () => {
+            try {
+                await member.roles.remove(muteRole, "Mute duration expired");
+            } catch { }
+        }, durationMs);
+    }
+};
+module.exports = {
+    data: new SlashCommandBuilder()
         .setName('member')
         .setDescription('Manage server members.')
         .addSubcommand(subcommand =>
